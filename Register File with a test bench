@@ -1,0 +1,52 @@
+module registerFile(OUT1addr,OUT2addr,INaddr,IN,We,OUT1,OUT2,CLK);//INaddr=W1 out1,out2=  
+//In=D1 out1addr=r1 output2addr=r2 out1=out1
+input[2:0] OUT1addr,OUT2addr;//Register reads
+input [2:0] INaddr;//Reg address to write to
+input We;//Write enable/diable signal
+input[7:0] IN;//Data to write to W1
+input CLK;
+output reg [7:0] OUT1,OUT2; //to take output data from R1 and R2
+
+reg [7:0] rf[7:0]; //Array of 8 registers. Each register with 32 bits
+always@(negedge CLK) // using a clock
+begin 
+//check if write is enabled 
+if(We)
+rf[INaddr] <= IN;
+end
+always@(posedge CLK)
+begin
+//Save data stored in OUTPUTaddr1 into OUTPUT1
+OUT1 <= rf[OUT1addr];
+
+//save data stored in OUTPUTaddr2 into OUTPUT2
+OUT2<= rf[OUT2addr];
+end 
+endmodule
+//test bench for the registerFile
+module testreg;
+ reg[7:0] IN;
+ reg[2:0] INaddr,OUT1addr,OUT2addr;
+ reg CLK;
+ wire [7:0] OUT1,OUT2;
+reg We;
+  registerFile regFile (OUT1addr,OUT2addr,INaddr,IN,We,OUT1,OUT2,CLK);
+  
+  initial begin
+    
+    INaddr = 3'b000;OUT1addr= 3'b000;OUT2addr= 3'b010;IN= 8'b11001100;We=1;
+    #5
+    $monitor(" IN = %b, OUT1= %b, OUT2= %b,INaddr= %b,OUT1addr= %b,OUT2addr= %b,CLK= %b ",IN, OUT1, OUT2, INaddr, OUT1addr, OUT2addr, CLK);
+    CLK =1'b1;
+    #5;
+    CLK =1'b0;
+    #5;
+    CLK =1'b1;
+    #5;
+    INaddr = 3'b011;OUT1addr= 3'b000;OUT2addr= 3'b011;IN= 8'b11001110;
+    #5
+    CLK =1'b0;
+    #5
+    CLK =1'b1;
+ end
+endmodule
