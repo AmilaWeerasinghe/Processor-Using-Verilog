@@ -1,0 +1,17 @@
+module ALU(out,DATA1,DATA2,Select);	//module for ALU
+input [7:0]DATA1,DATA2;//8 bit data inputs
+	input [2:0] Select;//three bit selection 
+	output [7:0]out;//8 bit data output
+	reg out;//outputt register
+	always@(DATA1,DATA2,Select)
+	begin
+		case(Select)
+			3'b000: out=DATA1;//forward
+			3'b001: out=DATA1+DATA2;//add
+			3'b010: out=DATA1 & DATA2;//and
+			3'b011: out=DATA1| DATA2; //or
+		
+		endcase
+	end
+
+endmodule
