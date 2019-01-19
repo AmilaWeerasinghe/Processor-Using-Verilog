@@ -1,0 +1,343 @@
+module alu(out,DATA1,DATA2,Select);//alu created in lab 5 part 1 						//ALU
+	input [7:0]DATA2;
+	input [7:0]DATA1;	
+	output [7:0] out;
+	reg out;
+	input [2:0] Select;
+	always@(Select,DATA1,DATA2)
+	begin
+		case(Select)
+		//your code here//
+		default: out =8'b00000000;				//Default combination
+		3'b011:							//Bitwise OR operation			OP-code = (011)
+			assign out = DATA1 | DATA2;
+		3'b010:							//Bitwise AND operation			OP-code = (010)
+			assign out = DATA1 & DATA2;
+		3'b001:							//Add operation				OP-code = (001) 	
+			assign out = DATA1 + DATA2;
+		3'b000:							//Forward operation 			OP-code = (000)
+			assign out = DATA1;
+		3'b1xx:
+			assign out = 8'bxxxxxxxx;
+		/*3'b100:							//Load Immediate value			OP-code = (100)
+			assign out = DATA1;
+		3'b101:							//Subtract operation			OP-code = (101)
+			assign out = DATA1 + DATA2;			
+		3'b110:							//Load word operation			OP-code = (110)
+			assign out = DATA1;
+		3'b111:							//Store word operation			OP-code = (111)
+			assign out = DATA1;*/			    			
+		endcase
+	end
+endmodule
+
+module regFile(IN,OUT1,OUT2,clk,RESET,INaddr,OUT1addr,OUT2addr,writeRegister); 		//Register File created in lab 5 part2
+	input clk,RESET;
+	input [7:0] IN;
+	input [2:0] INaddr;
+	input [2:0] OUT1addr;
+	output [7:0] OUT1;
+	input writeRegister;
+	input [2:0] OUT2addr;
+	output [7:0] OUT2;
+	integer i;
+	reg OUT2;
+	reg OUT1;
+	reg [7:0] regFile [0:7];	//regfile - an array of registers
+
+	always @(negedge clk) begin 	//writing to the register file
+		if(writeRegister) begin
+			regFile[INaddr] = IN;
+		end
+	end
+	
+	always @(posedge clk) begin 	//reading from register file
+		OUT1 = regFile[OUT1addr];
+		OUT2 = regFile[OUT2addr];
+	end
+
+	always @(RESET) begin 		//resetting register file
+		for(i=7; i>=0;i=i-1)regFile[i] = 0;
+	end
+
+endmodule
+
+module complementOfTwo(IN,complement);		//2's Complement
+	output [7:0] complement;	
+	input [7:0] IN;	
+	assign	complement = -IN;
+endmodule
+
+module mux(IN1,IN2,OUT,Select);			//Multiplexer
+	input Select;	
+	output [7:0] OUT;
+	input [7:0] IN1, IN2;
+	reg OUT;
+	
+	//assign OUT = (Select) ? IN2 : IN1 ;
+	always @(Select) begin
+		case(Select)
+			1'b0:
+				assign OUT = IN1;
+			1'b1:
+				assign OUT = IN2;
+		endcase
+	end
+endmodule
+
+module CU(OPcode,ALU_select,OUT1Addr,OUT2Addr,INAddr,Immediate,mux1, mux2,read,write,instruction,address,busy_wait,mux3,writeRegister);		//Control unit
+	output [2:0] ALU_select,OUT1Addr,OUT2Addr,INAddr;
+	output mux1, mux2,mux3;
+	output read, write;
+	input [31:0] instruction;
+	output writeRegister;
+	input busy_wait;
+	input [7:0] OPcode;
+	output [7:0] Immediate;
+	output [7:0] address;//new used for both store and load instructions
+	//assign ALU_select = OPcode [2:0];
+	
+	reg mux1, mux2, mux3,read, write, writeRegister;
+	reg address;
+
+	assign ALU_select = instruction[26:24];
+	assign OUT1addr = instruction[2:0];
+	assign OUT2addr = instruction[10:8];
+	assign INaddr = instruction[18:16];
+	assign Immediate = instruction[7:0];
+
+	always @(OPcode) begin
+		case(OPcode)
+			8'b00000000:begin 		//mov
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00001000:begin 		//loadi
+				mux1 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00000001:begin 		//add
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00001001:begin 		//sub
+				mux1 = 1'b1;
+				mux2 = 1'b1;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00000010:begin 		//and
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00000011:begin 		//or
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b0;
+				end
+			8'b00010000:begin 		//load(new instruction) OPCODE 00010000 used
+				mux3 = 1'b1;
+				writeRegister = 1'b1;
+				write = 1'b0;
+				read = 1'b1;
+				assign address = instruction[7:0];
+				end
+			8'b00011000:begin 		//store(new instruction) OPCODE 00011000 used
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				writeRegister = 1'b0;
+				write = 1'b1;
+				read = 1'b0;
+				assign address = instruction[23:16];
+				end
+			
+		endcase
+			
+	end
+endmodule
+
+module Ins_mem(instruction,readAddress);			//instruction memory
+	output [31:0] instruction;
+	reg instruction;
+	input [31:0] readAddress;
+
+	always @(readAddress) begin
+		case(readAddress)
+			//32'h00000007: instruction = 32'h09040703;
+			//32'h00000006: instruction = 32'h00070002;
+			//32'h00000005: instruction = 32'h03020106;
+			//32'h00000004: instruction = 32'h02010405;
+			//32'h00000003: instruction = 32'h01050603;
+			//32'h00000002: instruction = 32'h080300BB;
+			//32'h00000001: instruction = 32'h080600AA;
+			//32'h00000000: instruction = 32'h080400FF;
+			//new instructions for testing data memory
+			32'h00000000: instruction = 32'h080400FF;
+			32'h00000001: instruction = 32'h080600AA;
+			32'h00000002: instruction = 32'h080300BB;
+			32'h00000003: instruction = 32'h01050603;
+			32'h00000004: instruction = 32'h02010405;
+			32'h00000005: instruction = 32'h03020106;
+			32'h00000006: instruction = 32'h00070002;
+			32'h00000007: instruction = 32'h09040703;
+			32'h00000008: instruction = 32'h18070004;
+			32'h00000009: instruction = 32'h10030007;		
+		endcase
+	end
+endmodule
+
+module pc(clk,readAddress,reset);		//program counter
+	output [31:0] readAddress;
+	reg readAddress;
+	input clk,reset;
+
+	always @(reset) begin
+		readAddress = 32'h00000000;
+	end
+
+	always @(negedge clk) begin
+		readAddress = readAddress + 1;
+	end
+endmodule
+
+
+module Ins_reg(instruction,clk,OPcode,OUT1addr,OUT2addr,INaddr,Immediate);	//instruction_register
+	output[2:0] OUT1addr,OUT2addr,INaddr;	
+	input [31:0] instruction;
+	output [7:0] OPcode,Immediate;	
+	input clk;
+
+	assign OPcode = instruction[31:24];
+	assign INaddr = instruction[18:16];
+	assign Immediate = instruction[7:0];
+	assign OUT2addr = instruction[10:8];
+	assign OUT1addr = instruction[2:0];
+	
+endmodule
+
+module data_mem(clk,rst,read,write,address,write_data,read_data,busy_wait);
+	input           clk;
+	input           rst;
+	input           read;
+	input           write;
+	input[7:0]      address;
+	input[7:0]      write_data;//new
+	output[7:0]     read_data;//new
+	output		busy_wait;//new
+
+	reg[7:0]     read_data;
+	reg busy_wait;
+
+	integer  i;
+
+	// Declare memory 256x8 bits 
+	reg [7:0] memory_array [255:0];
+	reg [7:0] memory_ram_q [255:0];
+
+
+
+	always @(posedge rst)
+	begin
+	    if (rst)
+	    begin
+		for (i=0;i<256; i=i+1)
+		    memory_array[i] <= 0;
+		    memory_ram_q[i] <= 0;
+	    end
+	end
+
+
+	always @(posedge clk)
+	begin
+	    if (write && !read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			repeat (100) @(posedge clk);
+			memory_ram_q[address] <= write_data;
+			busy_wait <= 0;
+		end
+	    if (!write && read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			
+			/*to add artificial delay add 100 more clk cycles use repeat(100)*/
+			repeat (100) @(posedge clk);
+			read_data <= memory_ram_q[address];
+			busy_wait <= 0;
+		end
+	end
+ 
+endmodule
+
+
+
+module testbed();		//Test Bed for processor
+	reg clk,set,reset,reset_reg;
+	wire [2:0] alu_select,OUT1addr,OUT2addr,INaddr;
+	wire [7:0] OPcode,Immediate,OUT1,OUT2,RESULT,complementOfTwo,mux2out,mux1out,mux3out, read_data,address;
+	wire mux1,mux2,mux3,read,write,busy_wait,writeRegister;
+	wire [31:0] readAddress,instruction;
+	
+
+	pc c(clk,readAddress,reset);
+	Ins_mem memory(instruction,readAddress);
+	Ins_reg register(instruction,clk,OPcode,OUT1addr,OUT2addr,INaddr,Immediate);
+	CU control_unit(OPcode,alu_select,OUT1addr,OUT2addr,INaddr,Immediate,mux1,mux2,read,write,instruction,address,busy_wait,mux3,writeRegister);
+//CU(OPcode,ALU_select,mux1, mux2,read,write,read,write,instruction,address,busy_wait,mux3);	
+	
+	//regfile8x8a1 regf(RESULT,OUT1,OUT2,clk,INaddr,OUT1addr,OUT2addr);
+	regFile regfile(mux3out,OUT1,OUT2,clk,reset_reg,INaddr,OUT1addr,OUT2addr,writeRegister);
+	
+	complementOfTwo twosComplement(OUT1,complementOfTwo);
+	mux mu2(OUT1,complementOfTwo,mux2out,mux2);
+	mux mu1(Immediate,mux2out,mux1out,mux1);
+	mux mu3(RESULT,read_data,mux3out,mux3);
+	alu alu1(RESULT,mux1out,OUT2,alu_select);
+	data_mem dMem1(clk,reset,read,write,address,RESULT,read_data,busy_wait);
+	
+
+
+	always #20 clk = ~clk;
+
+	initial begin
+		$dumpfile("regFile.vcd");
+		$dumpvars(0,testbed);
+		set = 1;
+		clk = ~set;
+		reset = 1;
+		reset = 0;
+		reset_reg = 1;
+		reset_reg = 0;
+		#400 $finish;
+	end
+
+	initial begin
+		set = 1;
+		while(set) begin
+			#40 $display("Instruction = %h	OUTAddr1=%d	OUT1=%d	OUTAddr2=%d	OUT2=%d	INAddr=%d	Immediate=%d	MUX1out=%d	MUX2out=%d	Result = %d",instruction,OUT1addr,OUT1,OUT2addr,OUT2,INaddr,Immediate,mux1out,mux2out,RESULT);
+		end
+	end
+endmodule
+
