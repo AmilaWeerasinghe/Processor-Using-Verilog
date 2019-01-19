@@ -1,0 +1,245 @@
+//ALU created in parrt1
+
+module ALU(out,DATA1,DATA2,Select);	//module for ALU
+input [7:0]DATA1,DATA2;//8 bit data inputs
+	input [2:0] Select;//three bit selection 
+	output [7:0]out;//8 bit data output
+	reg out;//outputt register
+	always@(DATA1,DATA2,Select)
+	begin
+		case(Select)
+			3'b000: out=DATA1;//forward
+			3'b001: out=DATA1+DATA2;//add
+			3'b010: out=DATA1 & DATA2;//and
+			3'b011: out=DATA1| DATA2; //or
+		
+		endcase
+	end
+
+endmodule
+//here no need of its test bench
+
+//registerFile created in part2
+module Register(clk,INaddr,IN,OUT1addr,OUT1,OUT2addr,OUT2);
+	input clk;
+ input [2:0] INaddr;
+ input [7:0] IN;
+ input [2:0] OUT1addr;
+ output[7:0] OUT1;
+ input [2:0] OUT2addr;
+ output[7:0] OUT2;
+
+reg [8:0] reg0, reg1, reg2, reg3,reg4,reg5,reg6,reg7;
+assign OUT1 = 	OUT1addr == 0 ? reg0 :
+				OUT1addr == 1 ? reg1 :
+				OUT1addr == 2 ? reg2 :
+				OUT1addr == 3 ? reg3 :
+				OUT1addr == 4 ? reg4 :
+				OUT1addr == 5 ? reg5 :
+				OUT1addr == 6 ? reg6 :
+				OUT1addr == 7 ? reg7 : 0;
+
+
+assign OUT2 = 	OUT2addr == 0 ? reg0 :
+				OUT2addr == 1 ? reg1 :
+				OUT2addr == 2 ? reg2 :
+				OUT2addr == 3 ? reg3 :
+				OUT2addr == 4 ? reg4 :
+				OUT2addr == 5 ? reg5 :
+				OUT2addr ==  6? reg6 :
+				OUT2addr == 7 ? reg7 : 0;
+
+ 
+ always @(negedge clk) 
+ 	begin
+ 		case(INaddr)
+	 		3'b000: reg0=IN;
+	 		3'b001: reg1=IN;
+	 		3'b010: reg2=IN;
+	 		3'b011: reg3=IN;
+	 		3'b100: reg4=IN;
+	 		3'b101: reg5=IN;
+	 		3'b110: reg6=IN;
+	 		3'b111: reg7=IN;
+	 	endcase
+	 end 
+endmodule
+
+//we need control unit
+
+//we need twos compliment when sustractor is called
+
+module twos_compliment(IN,OUT);		//twos complement
+	input [7:0] IN;
+	output signed [7:0] OUT;
+
+	assign OUT=-IN;
+endmodule
+
+//multiplexer is used to select value or compliment
+module multiplex(IN1,IN2,OUT,SELECT);		//multiplexer
+	input [7:0] IN1,IN2;
+	input SELECT;
+	output [7:0] OUT;
+
+	assign OUT = (SELECT) ? IN2 : IN1 ;
+	
+endmodule
+
+//program counter is needed
+module counter(clk,reset,addr);		//module program counter
+	input clk,reset;
+	output [31:0] addr;
+	reg addr;
+
+	always @(reset) begin
+		addr = 32'h00000000;
+	end
+
+	always @(negedge clk) begin
+		addr = addr + 1;//addr is incremented by 1
+	end
+endmodule
+
+
+//control unit
+//input should be instruction opcode
+//output should be select for alu and input to muxes
+
+module CU(opcode,SELECT,mulx1,mulx2);	//control unit
+	input [7:0] opcode;
+	output [2:0] SELECT;
+	output mulx1,mulx2;
+	reg mulx1,mulx2;
+	
+	assign SELECT = opcode [2:0]; //select should be opcodes last three bits for alu
+	always @(opcode) begin
+		case(opcode)
+			8'b00000000:begin 	//for mov	
+				mulx1 = 1'b1;
+				mulx2 = 1'b0;
+				end
+			8'b00000001:begin 	//for add	
+				mulx1 = 1'b1;
+				mulx2 = 1'b0;
+				end
+			8'b00001001:begin 	//sub	
+				mulx1 = 1'b1;
+				mulx2 = 1'b1;
+				end
+			8'b00000010:begin 	//and	
+				mulx1 = 1'b1;
+				mulx2 = 1'b0;
+				end
+			8'b00000011:begin 	//or	
+				mulx1 = 1'b1;
+				mulx2 = 1'b0;
+				end
+			8'b00001000:begin 	//for load	
+				mulx1 = 1'b0;
+				end	
+		endcase
+			
+	end
+endmodule
+//instruction memory 32 bits instead of memory
+module instruction_mem(Read_addr,Instruction_code);
+	output [31:0] Instruction_code;
+	reg Instruction_code;
+	input [31:0] Read_addr;
+
+	always @(Read_addr) begin
+		case(Read_addr)
+			
+			/*32'h00000000: Instruction_code = 32'b00001000 00000 100 00000000 11111111;// loadi 4 X 0xFF(255)
+			32'h00000001: Instruction_code = 32'b00001000 00000 110 00000000 10101010;// loadi 6 X 0xAA(170)
+
+			32'h00000002: Instruction_code = 32'b00001000 00000 011 00000000 10111011;// loadi 3 X 0xBB(187)
+
+			32'h00000003: Instruction_code = 32'b00000001 00000 101 00000 110 00000 011;// add   5 6 3
+
+			32'h00000004: Instruction_code = 32'b00000010 00000 001 00000 100 00000 101;// and   1 4 5
+
+			32'h00000005: Instruction_code = 32'b00000011 00000 010 00000 001 00000 110;// or    2 1 6
+
+			32'h00000006: Instruction_code = 32'b00000000 00000 111 00000 000 00000 010;// mov   7 x 2
+
+			32'h00000007: Instruction_code = 32'b00001001 00000 100 00000 111 00000 011;// sub   4 7 3*/
+			
+			32'h00000000: Instruction_code = 32'b00001000000001000000000011111111;// loadi 4 X 0xFF(255)
+			32'h00000001: Instruction_code = 32'b00001000000001100000000010101010;// loadi 6 X 0xAA(170)
+			32'h00000002: Instruction_code = 32'b00001000000000110000000010111011;// loadi 3 X 0xBB(187)
+			32'h00000003: Instruction_code = 32'b00000001000001010000011000000011;// add   5 6 3
+			32'h00000004: Instruction_code = 32'b00000010000000010000010000000101;// and   1 4 5
+			32'h00000005: Instruction_code = 32'b00000011000000100000000100000110;// or    2 1 6
+			32'h00000006: Instruction_code = 32'b00000000000001110000000000000010;// mov   7 x 2
+			32'h00000007: Instruction_code = 32'b00001001000001000000011100000011;// sub   4 7 3
+			
+			
+			
+		endcase
+	end
+endmodule
+
+
+
+//inside the control unit a opcode should be divided in instruction reg
+
+module instruction_reg(Instruction,clk,OPCODE,OUT1addr,OUT2addr,INaddr,Immediate);
+	input [31:0] Instruction;
+	input clk;
+	output[2:0] OUT1addr,OUT2addr,INaddr;
+	output [7:0] OPCODE,Immediate;
+	
+	
+	assign INaddr = Instruction[18:16];
+	assign OPCODE = Instruction[31:24];
+	assign Immediate = Instruction[7:0];
+	assign OUT1addr = Instruction[2:0];
+	assign OUT2addr = Instruction[10:8];
+endmodule
+
+
+//test bench
+
+module for_processor_test();
+	wire [2:0] SELECT,OUT1addr,OUT2addr,INaddr;
+	wire mux1OUT,mux2OUT;
+	reg clk,reset,reset_reg;
+	wire [31:0] Read_addr,Instruction_code;
+	wire [7:0] OPCODE,Immediate,OUT1,OUT2,RESULT,twosComplement,mux2out,mux1out;
+	
+
+	counter c1(clk,reset,Read_addr);
+	instruction_mem instruct_mem1(Read_addr,Instruction_code);
+	instruction_reg instruct_reg1(Instruction_code,clk,OPCODE,OUT1addr,OUT2addr,INaddr,Immediate);
+	CU cu1(OPCODE,SELECT,mux1OUT,mux2OUT);
+	Register regfile(clk,INaddr,RESULT,OUT1addr,OUT1,OUT2addr,OUT2);
+	twos_compliment tcmplmnt(OUT1,twosComplement);
+	multiplex mulx2(OUT1,twosComplement,mux2out,mux2OUT);
+	multiplex mulx1(Immediate,mux2out,mux1out,mux1OUT);
+	ALU alu(RESULT,mux1out,OUT2,SELECT);
+
+	always #10 clk = ~clk;
+
+	initial begin
+			
+		clk = 0;
+		reset = 1;
+		reset = 0;
+		reset_reg = 1;
+		reset_reg = 0;
+		#160 
+		
+		$finish;
+	end
+
+	initial begin
+		while(1) begin
+		#10 $display("INSTRUCTION=%b RESULT=%d clock=%d",Instruction_code,RESULT,clk);
+		//#20 $display("INSTRUCTION=%b RESULT=%d clock=%d",Instruction_code,RESULT,clk);
+		end
+	end
+endmodule
+
+
