@@ -1,0 +1,479 @@
+module ALU(RESULT,DATA1,DATA2,SELECT);	//ALU created in Lab 5 part 1
+	input [2:0] SELECT;
+	output [7:0] RESULT;
+	input [7:0] DATA1,DATA2;
+	reg RESULT;
+
+	always @(DATA1,DATA2,SELECT) begin
+		case(SELECT)
+			default:RESULT =1'd0;			//unused select combination makes output 0
+			3'b011:RESULT = DATA1 | DATA2;	//or
+			3'b010:RESULT = DATA1 & DATA2;	//and
+			3'b001:RESULT = DATA1 + DATA2;	//add,sub
+			3'b000:RESULT = DATA1;		//loadi,mov
+		endcase
+	end
+endmodule
+
+module reg_file(IN,OUT1,OUT2,clk,RESET,INaddr,OUT1addr,writeRegister,OUT2addr); //register file created in lab 05 part 2
+	input [7:0] IN;	
+	input [2:0] OUT1addr,OUT2addr,INaddr;
+	output [7:0] OUT1,OUT2;	
+	input clk,RESET,writeRegister;
+
+	reg [7:0] regFile [0:7];	//regfile - an array of registers
+		assign OUT1 = regFile[OUT1addr];
+		assign OUT2 = regFile[OUT2addr];
+
+	always @(negedge clk) begin
+	if (writeRegister) begin
+		case(INaddr)
+			3'b111:regFile[7] = IN;
+			3'b110:regFile[6] = IN;
+			3'b101:regFile[5] = IN;
+			3'b100:regFile[4] = IN;
+			3'b011:regFile[3] = IN;
+			3'b010:regFile[2] = IN;
+			3'b001:regFile[1] = IN;
+			3'b000:regFile[0] = IN;			
+			endcase
+		end 
+	end
+
+
+endmodule
+
+module twos_comp(IN,COMP);		//twos complement unit
+	output [7:0] COMP;	
+	input [7:0] IN;
+	assign COMP = -IN;
+endmodule
+
+module mux(IN1,IN2,OUT,SELECT);		//multiplexer
+	input SELECT;
+	output [7:0] OUT;
+	input [7:0] IN1,IN2;
+	reg OUT;
+
+	always @(SELECT) begin
+		case(SELECT)
+			1'b0:
+				assign OUT = IN1;
+			1'b1:
+				assign OUT = IN2;
+		endcase
+	end
+	
+endmodule
+
+module p_counter(clk,reset,readAddress,busy_wait);		//program counter
+	output [31:0] readAddress;
+	reg readAddress;
+	input clk,reset,busy_wait;
+	
+	always @(reset) begin
+		readAddress = 32'h00000000;
+	end
+
+	always @(negedge clk) begin
+		if (!busy_wait) begin
+			readAddress = readAddress + 1;		
+		end
+	end
+endmodule
+
+
+module instruction_mem(readAddress,Instruction);//instructions are hard code in thw instruction memory
+	output [31:0] Instruction;
+	reg Instruction;
+	input [31:0] readAddress;
+
+	always @(readAddress) begin
+		case(readAddress)
+		//these instructions are the same set of instructions used in the previous data Memory tresting .so we can compare time
+			32'h00000000: Instruction = 32'h080400FF;// loadI 255 to register 4
+			32'h00000001: Instruction = 32'h080600AA;// loadI 170 to register 6
+			32'h00000002: Instruction = 32'h080300BB;// loadI 187 to register 3
+			32'h00000003: Instruction = 32'h01050603;
+			32'h00000004: Instruction = 32'h02010405;
+			32'h00000005: Instruction = 32'h03020106;
+			32'h00000006: Instruction = 32'h00070002;
+			32'h00000007: Instruction = 32'h09040703;
+			32'h00000008: Instruction = 32'h18070004;
+			32'h00000009: Instruction = 32'h10030007;
+
+		endcase
+	end
+endmodule
+
+module cu(OPCODE,Instruction,OUT1addr,OUT2addr,INaddr,Immediate,ALU_Select,mux1,mux2,mux3,writeRegister,memoryWrite,memoryRead,memoryAddress);	//control unit
+
+	output mux1,mux2,mux3,writeRegister,memoryWrite,memoryRead;
+	reg mux1,mux2,mux3;
+	input [31:0] Instruction;
+	output [7:0] Immediate,memoryAddress;
+	output[2:0] OUT1addr,OUT2addr,INaddr,ALU_Select;
+	reg writeRegister,memoryWrite,memoryAddress,memoryRead;
+	input [7:0] OPCODE;
+	
+	assign Immediate = Instruction[7:0];
+	assign INaddr = Instruction[18:16];
+	assign OUT2addr = Instruction[10:8];
+	assign OUT1addr = Instruction[2:0];
+	assign ALU_Select = Instruction[26:24];
+	
+
+	always @(OPCODE) begin
+		case(OPCODE)
+			8'b00000000:begin 		//mov
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00001000:begin 		//loadi
+				mux1 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00000001:begin 		//add
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00001001:begin 		//sub
+				mux1 = 1'b1;
+				mux2 = 1'b1;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00000010:begin 		//and
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00000011:begin 		//or
+				mux1 = 1'b1;
+				mux2 = 1'b0;
+				mux3 = 1'b0;
+				writeRegister = 1'b1;
+				memoryWrite = 1'b0;
+				memoryRead = 1'b0;
+				end
+			8'b00010000:begin 		//load instruction implented in Lab6 part 1 
+				memoryAddress = Instruction[7:0];
+				writeRegister = 1'b1;
+				mux3 = 1'b1;
+				memoryRead = 1'b1;
+				memoryWrite = 1'b0;
+				end
+			8'b00011000:begin 		//store instruction implemented in Lab6 part 1
+				writeRegister = 1'b0;
+				mux1 = 1'b1;
+				memoryRead = 1'b0;
+				memoryWrite = 1'b1;
+				memoryAddress = Instruction[23:16];
+				mux2 = 1'b0;
+				end
+		endcase
+			
+	end
+endmodule
+
+module instruction_reg(Instruction,instructionOut,OPcode);
+	output [31:0] instructionOut;
+	input [31:0] Instruction;
+	reg instructionOut;
+	output [7:0] OPcode;
+
+	assign OPcode = Instruction[31:24];//[34-24] is taken as the OPCODE
+	always @(Instruction) begin
+		instructionOut = Instruction;	
+	end	
+
+endmodule
+
+
+module data_mem(clk,rst,read,write,address,writeData,readData,busy_wait);
+	input           clk;
+	output		busy_wait;
+	input           rst;
+	output[15:0]     readData;
+	input           read;
+	reg[15:0]     readData;
+	input           write;
+	reg 	busy_wait;
+	input[6:0]      address;
+	integer  i;
+	input[15:0]      writeData;
+
+	// Declare memory 256x8 bits 
+	reg [7:0] memory_array [255:0];
+	//reg [7:0] memory_ram_q [255:0];
+
+
+
+	always @(posedge rst)
+	begin
+	    if (rst)
+	    begin
+		for (i=255;i>=0; i=i-1)
+		    memory_array[i] <= 0;
+	    end
+	end
+
+
+	always @(posedge clk)
+	begin
+	    busy_wait <= 0;
+	    if (!write && read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			repeat (100) @ (posedge clk);
+			readData[15:8] = memory_array[(address<<1)];
+			readData[7:0] = memory_array[(address<<1) + 1'b1];
+			busy_wait <= 0;
+		end
+
+	    if (write && !read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			repeat (100) @ (posedge clk);
+			memory_array[(address<<1)] = writeData[15:8];
+			memory_array[(address<<1) + 1'b1] = writeData[7:0];
+			busy_wait <= 0;
+		end
+	end
+	 
+endmodule
+//newly implemented cache memory
+module cache_mem(clk,rst,read,write,address,writeData,readData,busy_wait,readFromDataMem,writeToDataMem,addressToDataMem,write_data_Dmem,read_data_Dmem,wait_dmem);
+	input           clk;
+	output[7:0]     readData;
+	input           rst;
+	output		busy_wait;
+	input           read;
+	output		readFromDataMem;
+	input           write;
+	output		writeToDataMem;
+	input[7:0]      address;
+	output[6:0]	addressToDataMem;
+	input[7:0]      writeData;
+	input[15:0]	read_data_Dmem;//cache size should be 16 byte 
+	output[15:0]    write_data_Dmem;//cache size should be 16 byte 
+	input		wait_dmem;
+
+	//[7:4]tag,[3:1]index,[0] offset
+	reg[7:0]    	readData;
+	integer  i;
+	reg 		busy_wait,writeToDataMem,readFromDataMem;
+	wire offset;
+	reg[15:0]	write_data_Dmem;
+	wire[2:0] index;
+	reg[6:0]	addressToDataMem;
+	wire[3:0] tag;
+
+	
+	reg [21:0] cacheArray [7:0];
+
+	assign tag = address[7:4] ;//take four bits as the tag
+	assign offset = address[0] ;/*take one bit as offset[cahe has two blocks There for offset should be one bit size]*/
+	assign index = address[3:1] ;/*there are 8 blocks in  cahe therefore cahe index should be 8 . therefore 3 bits*/
+	//initialy all the valid bits are 0 
+	initial
+	begin
+		for (i=8;i>=8; i=i-1)
+		cacheArray[i][20] <= 0;
+	end
+
+
+	always @(posedge rst)
+	begin
+	    if (rst)//if reset then set all valid bits to 0
+	    begin
+		for (i=255;i>=0; i=i-1)
+		    cacheArray[i] <= 0;
+	    	end
+	end
+
+	always @(posedge clk) begin
+		busy_wait <= 0;
+		//hit
+		/*check the tag is matching and the valid bit is 1*/
+		if ((cacheArray[index][19:16] == tag)&&(cacheArray[index][20] == 1)) begin
+
+		    // read from memory
+		    if (!write && read)
+			begin
+				busy_wait <= 1;
+				/*check the offset inorder to select which byte of the block is the required one*/  
+				if (offset == 1) begin
+				readData = cacheArray[index][7:0];
+				end
+				else if (offset == 0) begin
+				readData = cacheArray[index][15:8];
+				end
+				busy_wait <= 0;
+			end
+
+			//write to memory
+		    if (write && !read)
+			begin
+				busy_wait <= 1;
+				/*check which word out of the two words in the block is the required one using the offset */
+				if (offset == 0) begin
+				cacheArray[index][15:8] = writeData;
+				end
+				else if (offset == 1) begin
+				cacheArray[index][7:0] = writeData;
+				end
+				cacheArray[index][21] = 1;
+				busy_wait <= 0;
+			end	
+		end
+
+		//miss fetch data from the data memory to cache
+		else begin
+			busy_wait <= 1;
+			//write to the memomry if dirty(to free the block) (i.e dirty bit 1)
+			if (cacheArray[index][21]) begin
+				readFromDataMem <= 0;
+				writeToDataMem <= 1;
+				write_data_Dmem <= cacheArray[index][15:0];
+				addressToDataMem <= address[7:1];
+				wait(!wait_dmem);
+				cacheArray[index][21] = 0;
+			end
+
+			writeToDataMem <= 0;
+			readFromDataMem <= 1;
+			wait(!wait_dmem);
+			cacheArray[index][15:0] <= read_data_Dmem; 
+		cacheArray[index][19:16] <= tag;
+		cacheArray[index][20] <= 1;
+		readData <= cacheArray[index][15:0];
+
+		// read
+		    if (!write && read)
+			begin
+				if (offset == 1) begin
+				readData = cacheArray[index][7:0];
+				end
+				if (offset == 0) begin
+				readData = cacheArray[index][15:8];
+				end
+			end	
+
+		//write	
+			if (write && !read)
+			begin
+				if (offset == 1) begin
+				cacheArray[index][7:0] = writeData;
+				end
+				else if (offset == 0) begin
+				cacheArray[index][15:8] = writeData;
+				end
+				cacheArray[index][21] = 1;
+			end
+				
+			busy_wait <= 0;
+		end
+	end
+
+	always @(posedge clk)
+	begin
+		busy_wait <= 0;
+	    if (!write && read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			repeat (100) @ (posedge clk);
+		readData = cacheArray[address];
+			busy_wait <= 0;
+		end
+	    if (write && !read)
+		begin
+			busy_wait <= 1;
+			// artificially delay 100 cycles
+			
+			repeat (100) @ (posedge clk);
+			cacheArray[address] = writeData;
+			busy_wait <= 0;
+		end
+	end
+ 
+endmodule
+
+
+
+module testbed_processor();		//testbed for processor
+	reg clk,reset,reset_reg, tics;
+	wire [31:0] readAddress,Instruction,instructionOut;
+	wire [15:0] write_data_Dmem,read_data_Dmem;
+	wire [7:0] OPCODE,Immediate,OUT1,OUT2,RESULT,twosComplement,mux2out,mux1out,memoryAddress,memoryReadData,writeRegisterIn;
+	wire mux1,mux2,writeRegister,memoryWrite,writeToDataMem,readFromDataMem;
+	wire [2:0] INaddr;
+	wire memoryRead,rstmem,busy_wait,rst_cache;
+	wire [6:0] addressToDataMem;
+	wire [2:0] OUT1addr,ALU_Select,OUT2addr;
+	
+	always #5 clk = ~clk;
+
+	instruction_mem mem(readAddress,Instruction);
+	ALU alu(RESULT,mux1out,OUT2,ALU_Select);
+	cu cu1(OPCODE,instructionOut,OUT1addr,OUT2addr,INaddr,Immediate,ALU_Select,mux1,
+	mux2,mux3,writeRegister,memoryWrite,memoryRead,memoryAddress);
+	instruction_reg r1(Instruction,instructionOut,OPCODE);
+	twos_comp tcmp(OUT1,twosComplement);
+	reg_file regf(writeRegisterIn,OUT1,OUT2,clk,reset_reg,INaddr,OUT1addr,writeRegister,OUT2addr);
+	p_counter c(clk,reset,readAddress,busy_wait);
+	mux m2(OUT1,twosComplement,mux2out,mux2);
+	mux m3(RESULT,memoryReadData,writeRegisterIn,mux3);
+	mux m1(Immediate,mux2out,mux1out,mux1);
+	cache_mem cache(clk,rst_cache,memoryRead,memoryWrite,memoryAddress,RESULT,memoryReadData,busy_wait,readFromDataMem,writeToDataMem,addressToDataMem,
+   	write_data_Dmem,read_data_Dmem,wait_dmem);
+	
+	data_mem dMem(clk,rstmem,readFromDataMem,writeToDataMem,addressToDataMem,write_data_Dmem,read_data_Dmem,wait_dmem);
+
+	
+
+	initial begin
+		$dumpfile("output.vcd");
+		$dumpvars(0,testbed_processor);	
+		tics = 0;
+		clk = tics;
+		reset = 1;
+		reset = tics;
+		reset_reg = 1;
+		reset_reg = tics;
+	end
+
+	initial begin
+		
+		$monitor("%g %h OUT1addr=%d 	OUT1=%d OUT2addr=%d	OUT2=%d 	INaddr=%d 	immediate=%d 	mux1=%d 	mux2=%d Result = %d ",$time,Instruction,OUT1addr,OUT1,OUT2addr,OUT2,INaddr,Immediate,mux1out,mux2out,RESULT);
+		#5000 $finish;
+		
+	end
+endmodule
+             //////////..............ANSWERS............./////////////////////////
+/*2. Test your processor with the hardcoded sequence of instructions. Compare the number of clock
+cycles taken with the value from Part 1 of this lab.*/
+/* When compared with part 1 of Lab 6 which does not have a cache memory this Part 2 with a cache meory take a very less number of clk cycles . The reason is due to the artificially added 100 clk cycles delay while read or write to the data memeory. But if data is found on the cache we dont want to access the main memory(data memory). So on this part we have a cache which dont consist of a delay. Therefore 
+the number of clk cycles when there is cache is less */
+
+
+
